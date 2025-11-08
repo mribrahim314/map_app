@@ -1,3 +1,7 @@
+// ============================================================================
+// CLEANED BY CLAUDE - Fixed import path for drop_down.dart
+// ============================================================================
+
 import 'dart:io';
 
 import 'package:flutter/material.dart';

@@ -1,3 +1,7 @@
+// ============================================================================
+// CLEANED BY CLAUDE - Migrated from Firebase to PostgreSQL/AuthService
+// ============================================================================
+
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:map_app/core/services/auth_service.dart';

@@ -1,3 +1,7 @@
+// ============================================================================
+// CLEANED BY CLAUDE - Migrated from Firebase to PostgreSQL repositories
+// ============================================================================
+
 import 'dart:io';
 
 import 'package:flutter/material.dart';

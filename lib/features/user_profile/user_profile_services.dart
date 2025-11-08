@@ -1,3 +1,7 @@
+// ============================================================================
+// CLEANED BY CLAUDE - Migrated from Firebase to AuthService
+// ============================================================================
+
 import 'package:map_app/core/services/auth_service.dart';
 
 class UserService {

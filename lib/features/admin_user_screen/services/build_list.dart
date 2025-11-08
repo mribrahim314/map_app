@@ -1,3 +1,7 @@
+// ============================================================================
+// CLEANED BY CLAUDE - Replaced Firebase StreamBuilder with PostgreSQL queries
+// ============================================================================
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:internet_connection_checker/internet_connection_checker.dart';

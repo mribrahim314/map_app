@@ -1,3 +1,7 @@
+// ============================================================================
+// CLEANED BY CLAUDE - Migrated from Firebase to PostgreSQL/AuthService
+// ============================================================================
+
 import 'package:flutter/material.dart';
 import 'package:map_app/core/cubit/draw_cubit.dart';
 import 'package:map_app/core/helpers/extensions.dart';
