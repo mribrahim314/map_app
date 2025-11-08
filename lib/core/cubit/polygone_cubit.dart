@@ -100,6 +100,29 @@ class PolygonCubit extends Cubit<PolygonState> {
     }
   }
 
+  void setCoord(List<dynamic> coords) {
+    try {
+      final polygon = Polygon(
+        coordinates: [
+          coords
+              .map((point) => Position(
+                    point['lng'] as double,
+                    point['lat'] as double,
+                  ))
+              .toList(),
+        ],
+      );
+      emit(
+        PolygonState(
+          mainPolygons: state.mainPolygons,
+          secondaryPolygons: [polygon],
+        ),
+      );
+    } catch (e) {
+      print(e);
+    }
+  }
+
   void clearAll() => emit(PolygonState());
 
   void clearMain() =>

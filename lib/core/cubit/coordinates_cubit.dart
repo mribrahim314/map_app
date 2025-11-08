@@ -56,6 +56,20 @@ class CoordinatesCubit extends Cubit<List<Position>> {
     }
   }
 
+  void setCoordinate(List<dynamic> coords) {
+    try {
+      final positions = coords
+          .map((point) => Position(
+                point['lng'] as double,
+                point['lat'] as double,
+              ))
+          .toList();
+      emit(positions);
+    } catch (e) {
+      print(e);
+    }
+  }
+
   void sortClockwise() {
     final points = List<Position>.from(state);
     if (points.length < 3) return;
