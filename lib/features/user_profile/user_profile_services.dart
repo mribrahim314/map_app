@@ -1,55 +1,37 @@
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:map_app/core/models/user_model.dart';
+import 'package:map_app/core/services/auth_service.dart';
 
 class UserService {
-  final FirebaseAuth _auth = FirebaseAuth.instance;
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final AuthService _authService;
+
+  UserService(this._authService);
 
   Future<void> changePassword({
     required String oldPassword,
     required String newPassword,
   }) async {
-    final user = _auth.currentUser!;
-    final credential = EmailAuthProvider.credential(
-      email: user.email!,
+    // First verify old password by attempting sign in
+    final user = _authService.currentUser;
+    if (user == null) {
+      throw Exception('No user signed in');
+    }
+
+    // Re-authenticate with old password
+    await _authService.signIn(
+      email: user.email,
       password: oldPassword,
     );
-    await user.reauthenticateWithCredential(credential);
-    await user.updatePassword(newPassword);
+
+    // If successful, change password
+    await _authService.changePassword(newPassword);
   }
 
-  Future<void> requestContributorRole(
-    String userId,
-    //  Box<AppUser> userBox
-  ) async {
-    final userDocRef = _firestore.collection('users').doc(userId);
-    await userDocRef.update({'contributionRequestSent': true});
-
-    // final currentUser = userBox.get('currentUser') as AppUser;
-    // final updatedUser = AppUser(
-    //   name: currentUser.name,
-    //   role: currentUser.role,
-    //   requestSent: true,
-    //   contributionCount: currentUser.contributionCount,
-    // );
-    // await userBox.put('currentUser', updatedUser);
+  Future<void> requestContributorRole() async {
+    await _authService.sendContributionRequest();
   }
 
-  Future<void> cancelContributorRequest(
-    String userId,
-    // , Box<AppUser> userBox
-  ) async {
-    final userDocRef = _firestore.collection('users').doc(userId);
-    await userDocRef.update({'contributionRequestSent': false});
-
-    // final currentUser = userBox.get('currentUser') as AppUser;
-    // final updatedUser = AppUser(
-    //   name: currentUser.name,
-    //   role: currentUser.role,
-    //   requestSent: false,
-    //   contributionCount: currentUser.contributionCount,
-    // );
-    // await userBox.put('currentUser', updatedUser);
+  Future<void> cancelContributorRequest() async {
+    // This would need to be implemented in AuthService/UserRepository
+    // For now, just throw an error or implement in UserRepository
+    throw UnimplementedError('Cancel contribution request not yet implemented');
   }
 }

@@ -1,13 +1,12 @@
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:map_app/core/cubit/user_role_cubit.dart';
 import 'package:map_app/core/models/pending_submission.dart';
+import 'package:map_app/core/services/auth_service.dart';
 import 'package:map_app/core/theming/colors.dart';
 import 'package:map_app/features/admin_screen/admin_screen.dart';
 import 'package:map_app/features/contribution_screen/contribution_screen.dart';
 import 'package:map_app/features/main_screen/stack_screen.dart';
 import 'package:map_app/features/user_profile/user_profile_screen.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:provider/provider.dart';
 
 class MainScreen extends StatefulWidget {
@@ -39,18 +38,14 @@ class _MainScreenState extends State<MainScreen> {
 
   Future<void> _loadUserRoleFromCache() async {
     try {
-      // final box = await Hive.box<AppUser>('userBox');
-      // final user = await box.get('currentUser');
-      // String role = user?.role ?? 'normal';
-      final user = FirebaseAuth.instance.currentUser;
+      final authService = Provider.of<AuthService>(context, listen: false);
+      final user = authService.currentUser;
+
       if (user == null) {
         throw Exception('No authenticated user');
       }
-      final doc = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(user.uid)
-          .get();
-      final role = doc.data()?['role'] as String? ?? 'normal';
+
+      final role = user.role;
       setState(() {
         _userRole = role;
         _isLoading = false;

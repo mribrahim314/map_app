@@ -23,7 +23,7 @@ import 'package:map_app/core/widgets/app_text_button.dart';
 
 import 'package:map_app/core/widgets/image_picker_widget.dart';
 import 'package:map_app/core/widgets/customized_text_field.dart';
-import 'package:map_app/features/draw_sceen/drop_down.dart';
+import 'package:map_app/features/confirm_screen/drop_down.dart';
 import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:uuid/uuid.dart';

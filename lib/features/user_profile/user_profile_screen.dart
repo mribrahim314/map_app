@@ -1,15 +1,13 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:map_app/core/cubit/draw_cubit.dart';
 import 'package:map_app/core/helpers/extensions.dart';
 import 'package:map_app/core/routing/routes.dart';
+import 'package:map_app/core/services/auth_service.dart';
 import 'package:map_app/core/theming/colors.dart';
 import 'package:map_app/features/admin_user_screen/screens/map_screen_with_appbar.dart';
 import 'package:map_app/features/map_page/map_screen.dart';
 import 'package:map_app/features/user_profile/card_user_profile_screen.dart';
 import 'package:map_app/features/user_profile/user_header.dart';
-import 'package:maplibre/maplibre.dart';
 import 'package:provider/provider.dart';
 
 class UserProfileScreen extends StatefulWidget {
@@ -20,15 +18,11 @@ class UserProfileScreen extends StatefulWidget {
 }
 
 class _UserProfileScreenState extends State<UserProfileScreen> {
-  final _auth = FirebaseAuth.instance;
-  final _firestore = FirebaseFirestore.instance;
-  String _userRole = 'normal'; // Default fallback
+  String _userRole = 'normal';
   String _userName = 'Unknown User';
   bool _isLoading = true;
   bool _userRequestSent = false;
   int _userContributionCount = 0;
-  // late Box<AppUser> _userBox;
-  // late AppUser _user;
 
   @override
   void initState() {
@@ -42,33 +36,19 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
     });
 
     try {
-      final user = _auth.currentUser;
+      final authService = Provider.of<AuthService>(context, listen: false);
+      final user = authService.currentUser;
+
       if (user == null) {
         throw Exception('User not authenticated');
       }
 
-      final doc = await _firestore.collection('users').doc(user.uid).get();
-
-      if (doc.exists) {
-        final data = doc.data();
-        setState(() {
-          _userRole = data?['role'] as String? ?? 'normal';
-          _userRequestSent = data?['contributionRequestSent'] as bool? ?? false;
-          _userContributionCount = data?['contributionCount'] as int? ?? 0;
-          _userName =
-              (data?['email'] as String?)
-                  ?.replaceFirst('@test.com', '') // Remove the domain
-                  .trim() ??
-              'Unknown User';
-        });
-      } else {
-        setState(() {
-          _userRole = 'normal';
-          _userName = 'Unknown User';
-          _userRequestSent = false;
-          _userContributionCount = 0;
-        });
-      }
+      setState(() {
+        _userRole = user.role;
+        _userRequestSent = user.contributionRequestSent;
+        _userContributionCount = user.contributionCount;
+        _userName = user.email.replaceFirst('@test.com', '').trim();
+      });
     } catch (e) {
       print("Error loading user profile: $e");
 
@@ -113,7 +93,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
           TextButton(
             style: ElevatedButton.styleFrom(
               foregroundColor: Colors.white,
-              backgroundColor: ColorsManager.mainGreen, // <- ✅ Update button
+              backgroundColor: ColorsManager.mainGreen,
             ),
             onPressed: () => Navigator.pop(ctx),
             child: const Text('Cancel'),
@@ -132,29 +112,32 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
               setState(() => _isLoading = true);
 
               try {
-                final user = _auth.currentUser!;
-                final credential = EmailAuthProvider.credential(
-                  email: user.email!,
+                final authService = Provider.of<AuthService>(
+                  context,
+                  listen: false,
+                );
+
+                // Verify old password first
+                final user = authService.currentUser!;
+                await authService.signIn(
+                  email: user.email,
                   password: oldPasswordController.text,
                 );
-                await user.reauthenticateWithCredential(credential);
-                await user.updatePassword(newPasswordController.text);
+
+                // Change password
+                await authService.changePassword(newPasswordController.text);
 
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(content: Text('Password updated!')),
                 );
                 Navigator.pop(ctx);
-              } on FirebaseAuthException catch (e) {
+              } catch (e) {
                 String message = 'Failed to update password';
-                if (e.code == 'wrong-password') {
+                if (e.toString().contains('Invalid email or password')) {
                   message = 'Incorrect current password';
                 }
-                ScaffoldMessenger.of(
-                  context,
-                ).showSnackBar(SnackBar(content: Text(message)));
-              } catch (e) {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('An error occurred')),
+                  SnackBar(content: Text(message)),
                 );
               } finally {
                 setState(() => _isLoading = false);
@@ -175,27 +158,20 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
     setState(() => _isLoading = true);
 
     try {
-      final user = _auth.currentUser!;
-      final userDocRef = _firestore.collection('users').doc(user.uid);
+      final authService = Provider.of<AuthService>(context, listen: false);
+      await authService.sendContributionRequest();
 
-      await userDocRef.update({'contributionRequestSent': true});
+      // Reload user data to get updated status
+      await authService.reloadUser();
+      await _loadUserProfile();
 
-      // _user = AppUser(
-      //   name: _user.name,
-      //   role: _user.role,
-      //   requestSent: true,
-      //   contributionCount: _user.contributionCount,
-      // );
-
-      // await _userBox.put('currentUser', _user);
-
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Request sent!')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Request sent!')),
+      );
     } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Failed to send request')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Failed to send request')),
+      );
     } finally {
       setState(() => _isLoading = false);
     }
@@ -205,27 +181,22 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
     setState(() => _isLoading = true);
 
     try {
-      final user = _auth.currentUser!;
-      final userDocRef = _firestore.collection('users').doc(user.uid);
+      final authService = Provider.of<AuthService>(context, listen: false);
+      final user = authService.currentUser;
 
-      await userDocRef.update({'contributionRequestSent': false});
-
-      // _user = AppUser(
-      //   name: _user.name,
-      //   role: _user.role,
-      //   requestSent: false,
-      //   contributionCount: _user.contributionCount,
-      // );
-
-      // await _userBox.put('currentUser', _user);
-
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Request canceled')));
+      if (user != null) {
+        // This feature needs to be implemented in UserRepository
+        // For now, just show a message
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Cancel request feature coming soon'),
+          ),
+        );
+      }
     } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Failed to cancel')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Failed to cancel')),
+      );
     } finally {
       setState(() => _isLoading = false);
     }
@@ -240,13 +211,13 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
           content: const Text('Are you sure you want to log out?'),
           actions: [
             TextButton(
-              onPressed: () => Navigator.of(context).pop(false), // Cancel
+              onPressed: () => Navigator.of(context).pop(false),
               child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
             ),
             ElevatedButton(
-              onPressed: () => Navigator.of(context).pop(true), // Confirm
+              onPressed: () => Navigator.of(context).pop(true),
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.red, // or your theme color
+                backgroundColor: Colors.red,
               ),
               child: const Text(
                 'Logout',
@@ -258,11 +229,9 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
       },
     );
 
-    // Only proceed if user confirmed
     if (shouldLogout == true) {
-      await FirebaseAuth.instance.signOut();
-      // final box = Hive.box<AppUser>('userBox');
-      // await box.delete('currentUser');
+      final authService = Provider.of<AuthService>(context, listen: false);
+      await authService.signOut();
       context.pushReplacementNamed(Routes.logInScreen);
     }
   }
@@ -321,7 +290,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                                         ?.copyWith(fontWeight: FontWeight.w500),
                                   ),
                                   Text(
-                                    '${_userContributionCount} contribution(s)',
+                                    '$_userContributionCount contribution(s)',
                                     style: Theme.of(context)
                                         .textTheme
                                         .bodyMedium
@@ -419,17 +388,14 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                         primaryText: "Download Map",
                         ontapped: () {
                           final drawCubit = context.read<DrawModeCubit>();
-                          drawCubit.enablePolygon(); // enable polygon drawing
+                          drawCubit.enablePolygon();
 
                           Navigator.push(
                             context,
                             MaterialPageRoute(
                               builder: (context) => MapScreenWithAppBar(
                                 showDownloadButton: true,
-                                // showDownloadButton: true,
-                                child: MapScreen(
-                                  // your original map implementation
-                                ),
+                                child: MapScreen(),
                               ),
                             ),
                           );
