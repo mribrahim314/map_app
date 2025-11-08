@@ -1,16 +1,20 @@
 import 'dart:io';
 
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:hive/hive.dart';
+import 'package:latlong2/latlong.dart';
 import 'package:map_app/core/cubit/draw_cubit.dart';
 import 'package:map_app/core/cubit/coordinates_cubit.dart';
 import 'package:map_app/core/helpers/data.dart';
 import 'package:map_app/core/helpers/extensions.dart';
 import 'package:map_app/core/helpers/spacing.dart';
 import 'package:map_app/core/models/pending_submission.dart';
+import 'package:map_app/core/models/polygon_model.dart';
+import 'package:map_app/core/models/point_model.dart';
 import 'package:map_app/core/networking/internet_connexion.dart';
+import 'package:map_app/core/repositories/polygon_repository.dart';
+import 'package:map_app/core/repositories/point_repository.dart';
+import 'package:map_app/core/services/auth_service.dart';
 import 'package:map_app/core/services/image_picker_service.dart';
 import 'package:internet_connection_checker/internet_connection_checker.dart';
 import 'package:map_app/core/services/upload_image_to_supabase.dart';
@@ -84,20 +88,9 @@ class _DrawScreenState extends State<DrawScreen> {
       });
     }
 
-    Future<void> recordContribution(String userId) async {
-      await FirebaseFirestore.instance.collection('users').doc(userId).update({
-        'contributionCount': FieldValue.increment(1),
-      });
-      // final box = Hive.box<AppUser>('userBox');
-      // final cachedUser = box.get('currentUser');
-
-      // if (cachedUser != null) {
-      //   final updatedUser = cachedUser.copyWith(
-      //     contributionCount: cachedUser.contributionCount + 1,
-      //   );
-
-      // await box.put('currentUser', updatedUser);
-      // }
+    Future<void> recordContribution() async {
+      final authService = Provider.of<AuthService>(context, listen: false);
+      await authService.incrementContribution();
     }
 
     String getTargetCollection(bool isPoint, String userRole) {
@@ -113,51 +106,39 @@ class _DrawScreenState extends State<DrawScreen> {
             '${now.hour.toString().padLeft(2, '0')}:'
             '${now.minute.toString().padLeft(2, '0')}';
 
-        final user = FirebaseAuth.instance.currentUser;
-        if (user == null) return;
-        final userDoc = await FirebaseFirestore.instance
-            .collection('users')
-            .doc(user.uid)
-            .get();
+        // Get current user from AuthService
+        final authService = Provider.of<AuthService>(context, listen: false);
+        final currentUser = authService.currentUser;
 
-        if (!userDoc.exists) {
-          throw Exception("User document not found");
+        if (currentUser == null) {
+          throw Exception("User not authenticated");
         }
-        final String? userRole = userDoc.get('role') as String?;
 
-        if (userRole == null) {
-          throw Exception("User role not defined");
-        }
+        final String userRole = currentUser.role;
+        final String userId = currentUser.id;
+
         String? imageURL = null;
-        // if (_imageFile != null) {
-        //   try {
-        //     imageURL = await uploadImageToSupabase(_imageFile!);
-        //   } catch (e) {
-        //     ScaffoldMessenger.of(context).showSnackBar(
-        //       SnackBar(
-        //         content: Text("Upload failed: $e"),
-        //         backgroundColor: Colors.red,
-        //       ),
-        //     );
-        //     print(e);
-        //   }
-        // }
+
         final polygonPoints = context.read<CoordinatesCubit>().state;
-        final
-        // List<Map<String, double>>
-        coordinates = polygonPoints.map((pos) {
-          return GeoPoint(pos.lat.toDouble(), pos.lng.toDouble());
+
+        // Convert to LatLng list
+        final coordinates = polygonPoints.map((pos) {
+          return LatLng(pos.lat.toDouble(), pos.lng.toDouble());
         }).toList();
+
         final isPoint = coordinates.length == 1;
         if (coordinates.isEmpty) {
-          throw "error";
+          throw Exception("No coordinates provided");
         }
+
         final targetCollection = getTargetCollection(isPoint, userRole);
         final isAdopted = userRole == 'normal' ? false : true;
-        print(targetCollection);
+        print('Target collection: $targetCollection');
+
         bool internet = await checkInternet(context);
 
         if (!internet) {
+          // Save to Hive for offline sync
           final coordinatesHive = polygonPoints.map((pos) {
             return {'lat': pos.lat.toDouble(), 'lng': pos.lng.toDouble()};
           }).toList();
@@ -169,12 +150,13 @@ class _DrawScreenState extends State<DrawScreen> {
             type: selectedCategory,
             message: _messageController.text.trim(),
             imageURL: _imageFile != null ? _imageFile!.path : null,
-            userId: user.uid,
+            userId: userId,
             isAdopted: isAdopted,
             parcelSize: isPoint ? selectedParcelSize : null,
             date: dateTimeString,
             collection: targetCollection,
           );
+
           final box = await Hive.openBox<PendingSubmission>(
             'pendingSubmissions',
           );
@@ -182,61 +164,92 @@ class _DrawScreenState extends State<DrawScreen> {
           await box.add(submission);
 
           print("No internet: saved locally to Hive");
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text("No internet connexion, data saved locally"),
-              backgroundColor: Colors.red,
-            ),
-          );
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text("No internet connexion, data saved locally"),
+                backgroundColor: Colors.red,
+              ),
+            );
+          }
         } else {
+          // Upload image to Supabase if available
           if (_imageFile != null) {
             try {
               imageURL = await uploadImageToSupabase(_imageFile!);
             } catch (e) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text("Upload failed: $e"),
-                  backgroundColor: Colors.red,
-                ),
-              );
-              print(e);
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text("Image upload failed: $e"),
+                    backgroundColor: Colors.red,
+                  ),
+                );
+              }
+              print('Image upload error: $e');
             }
           }
 
-          final data = await FirebaseFirestore.instance
-              .collection(targetCollection)
-              .add({
-                "District": selectedDistrict,
-                "Gouvernante": selectedgv,
-                "coordinates": coordinates,
-                "Type": selectedCategory,
-                "Message": _messageController.text.trim(),
-                "imageURL": imageURL,
-                "userId": user.uid,
-                "isAdopted": isAdopted,
-                "parcelSize": isPoint ? selectedParcelSize : null,
-                "Date": dateTimeString,
-                // "TimeStamp": Timestamp.fromDate(DateTime.now()),
-              });
-          await recordContribution(user.uid);
-          print(data.id);
+          // Upload to PostgreSQL database
+          if (isPoint) {
+            // Create point in database
+            final pointRepo = PointRepository();
+            final point = PointModel(
+              district: selectedDistrict!,
+              gouvernante: selectedgv!,
+              type: selectedCategory!,
+              coordinate: coordinates.first,
+              message: _messageController.text.trim(),
+              imageUrl: imageURL,
+              userId: userId,
+              isAdopted: isAdopted,
+              date: DateTime.now(),
+              parcelSize: selectedParcelSize,
+            );
+
+            await pointRepo.createPoint(point);
+          } else {
+            // Create polygon in database
+            final polygonRepo = PolygonRepository();
+            final polygon = PolygonModel(
+              district: selectedDistrict!,
+              gouvernante: selectedgv!,
+              type: selectedCategory!,
+              coordinates: coordinates,
+              message: _messageController.text.trim(),
+              imageUrl: imageURL,
+              userId: userId,
+              isAdopted: isAdopted,
+              date: DateTime.now(),
+            );
+
+            await polygonRepo.createPolygon(polygon);
+          }
+
+          // Record contribution
+          await recordContribution();
+          print('Data uploaded successfully');
         }
+
+        // Clear drawing state
         final drawcubit = context.read<DrawModeCubit>();
         final polygoncubit = context.read<CoordinatesCubit>();
         drawcubit.disable();
         polygoncubit.clear();
+
         if (context.mounted) {
           ScaffoldMessenger.of(
             context,
           ).showSnackBar(SnackBar(content: Text("Contribution recorded!")));
         }
+
         if (mounted) context.pop();
       } catch (e) {
-        print(e);
+        print('Upload error: $e');
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text("Failed to upload contribution. Please try again."),
+              content: Text("Failed to upload contribution: ${e.toString()}"),
               backgroundColor: Colors.red,
             ),
           );
