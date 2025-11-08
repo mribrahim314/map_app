@@ -56,6 +56,8 @@ Widget buildListSection({
             return PolygonPointCard(
               noNet: false,
               polygonId: docId,
+              adoptText: adoptText,
+              data: itemData,
               onDelete: () {
                 showDialog(
                   context: context,
@@ -139,13 +141,8 @@ Widget buildListSection({
                   },
                 );
               },
-              onEdit: () {},
-              name: itemData['type'] ?? 'Unknown',
-              showAdoptButton: false,
               onAdopt: () async {},
-              adoptText: adoptText,
-              data: itemData,
-              onMapPressed: () async {
+              onViewMap: () async {
                 if (title == 'polygones') {
                   final coordinates = itemData['coordinates'] as List;
                   final points = coordinates.map((coord) {
@@ -196,7 +193,7 @@ Widget buildListSection({
                     );
                   }
                 }
-              }, onViewMap: () {  },
+              },
             );
           },
         ),

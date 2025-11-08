@@ -162,6 +162,33 @@ class UserRepository {
     );
   }
 
+  /// Decrement user contribution count
+  Future<void> decrementContributionCount(String userId) async {
+    await _db.query(
+      '''
+      UPDATE users
+      SET contribution_count = GREATEST(0, contribution_count - 1), updated_at = NOW()
+      WHERE id = @userId
+      ''',
+      parameters: {'userId': userId},
+    );
+  }
+
+  /// Update user contribution count
+  Future<void> updateContributionCount(String userId, int count) async {
+    await _db.query(
+      '''
+      UPDATE users
+      SET contribution_count = @count, updated_at = NOW()
+      WHERE id = @userId
+      ''',
+      parameters: {
+        'userId': userId,
+        'count': count,
+      },
+    );
+  }
+
   /// Change user password
   Future<void> changePassword(String userId, String newPassword) async {
     final passwordHash = _hashPassword(newPassword);
