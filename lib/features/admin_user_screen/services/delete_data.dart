@@ -21,10 +21,7 @@ Future<void> DeleteDataForUser(String userId) async {
     // Reset user contribution count
     final user = await userRepo.getUserById(userId);
     if (user != null) {
-      await userRepo.updateUser(
-        user.id,
-        user.copyWith(contributionCount: 0),
-      );
+      await userRepo.updateContributionCount(userId, 0);
     }
 
     print('Data successfully deleted for userId: $userId');

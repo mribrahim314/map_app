@@ -155,9 +155,9 @@ class _UserInfoScreenState extends State<UserInfoScreen> {
                                     ),
                                     onTap: () async {
                                       try {
-                                        await _userRepo.updateUser(
+                                        await _userRepo.updateUserRole(
                                           widget.userId,
-                                          user.copyWith(role: role),
+                                          role,
                                         );
                                         Navigator.pop(context, role);
                                       } catch (e) {
