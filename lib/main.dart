@@ -5,6 +5,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:hive/hive.dart';
 import 'package:map_app/core/models/pending_submission.dart';
+import 'package:map_app/core/models/user_model.dart';
 import 'package:map_app/core/routing/app_router.dart';
 import 'package:map_app/features/cnrs_app.dart';
 import 'package:map_app/firebase_options.dart';
@@ -19,9 +20,10 @@ void main() async {
       await Firebase.initializeApp(
         options: DefaultFirebaseOptions.currentPlatform,
       );
+      // Optimize Firestore cache: 100MB limit for better performance
       FirebaseFirestore.instance.settings = const Settings(
         persistenceEnabled: true,
-        cacheSizeBytes: Settings.CACHE_SIZE_UNLIMITED,
+        cacheSizeBytes: 100 * 1024 * 1024, // 100MB
       );
 
       await Supabase.initialize(
@@ -30,7 +32,13 @@ void main() async {
             'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InR5dmFscmlmbGJpanJ5dGR0eXFjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTcxNjUwMzAsImV4cCI6MjA3Mjc0MTAzMH0.6l2ZDsf7VDDUkzFdrV9rvhQwnvGveLf5cpUff0ER8JY',
       );
 
+      // Register Hive adapters
       Hive.registerAdapter(PendingSubmissionAdapter());
+      Hive.registerAdapter(AppUserAdapter());
+
+      // Open Hive boxes
+      await Hive.openBox<PendingSubmission>('pendingSubmissions');
+      await Hive.openBox<AppUser>('userBox');
 
       runApp(CNRSapp(appRouter: AppRouter()));
     },

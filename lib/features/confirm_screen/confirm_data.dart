@@ -10,7 +10,9 @@ import 'package:map_app/core/helpers/data.dart';
 import 'package:map_app/core/helpers/extensions.dart';
 import 'package:map_app/core/helpers/spacing.dart';
 import 'package:map_app/core/models/pending_submission.dart';
+import 'package:map_app/core/models/project_model.dart';
 import 'package:map_app/core/networking/internet_connexion.dart';
+import 'package:map_app/core/networking/project_repository.dart';
 import 'package:map_app/core/services/image_picker_service.dart';
 import 'package:internet_connection_checker/internet_connection_checker.dart';
 import 'package:map_app/core/services/upload_image_to_supabase.dart';
@@ -36,9 +38,54 @@ class _DrawScreenState extends State<DrawScreen> {
   String? selectedDistrict = null;
   String? selectedCategory = null;
   String? selectedParcelSize;
+  String? selectedProjectId;
   final TextEditingController _messageController = TextEditingController();
   File? _imageFile;
   bool isLoading = false;
+  List<Project> availableProjects = [];
+  bool isLoadingProjects = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadProjects();
+  }
+
+  Future<void> _loadProjects() async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) return;
+
+      final userDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .get();
+
+      final userRole = userDoc.data()?['role'] ?? 'viewer';
+      final repository = ProjectRepository();
+
+      List<Project> projects;
+      if (userRole == 'admin') {
+        projects = await repository.getActiveProjects();
+      } else {
+        projects = await repository.getUserProjects(user.uid);
+      }
+
+      if (mounted) {
+        setState(() {
+          availableProjects = projects;
+          isLoadingProjects = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          isLoadingProjects = false;
+        });
+      }
+    }
+  }
+
   @override
   Future<void> _pickImage() async {
     final picker = ImagePickerService();
@@ -105,6 +152,10 @@ class _DrawScreenState extends State<DrawScreen> {
     }
 
     Future<void> uploadToDB() async {
+      setState(() {
+        isLoading = true;
+      });
+
       try {
         final now = DateTime.now();
         final dateTimeString =
@@ -114,7 +165,17 @@ class _DrawScreenState extends State<DrawScreen> {
             '${now.minute.toString().padLeft(2, '0')}';
 
         final user = FirebaseAuth.instance.currentUser;
-        if (user == null) return;
+        if (user == null) {
+          if (context.mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text("Please log in first to submit contributions."),
+                backgroundColor: Colors.red,
+              ),
+            );
+          }
+          return;
+        }
         final userDoc = await FirebaseFirestore.instance
             .collection('users')
             .doc(user.uid)
@@ -150,7 +211,7 @@ class _DrawScreenState extends State<DrawScreen> {
         }).toList();
         final isPoint = coordinates.length == 1;
         if (coordinates.isEmpty) {
-          throw "error";
+          throw Exception("No coordinates provided. Please draw on the map first.");
         }
         final targetCollection = getTargetCollection(isPoint, userRole);
         final isAdopted = userRole == 'normal' ? false : true;
@@ -203,6 +264,16 @@ class _DrawScreenState extends State<DrawScreen> {
             }
           }
 
+          // Get actual project ID from selected project name
+          String? actualProjectId;
+          if (selectedProjectId != null) {
+            final selectedProject = availableProjects.firstWhere(
+              (p) => p.name == selectedProjectId,
+              orElse: () => availableProjects.first,
+            );
+            actualProjectId = selectedProject.id;
+          }
+
           final data = await FirebaseFirestore.instance
               .collection(targetCollection)
               .add({
@@ -216,6 +287,7 @@ class _DrawScreenState extends State<DrawScreen> {
                 "isAdopted": isAdopted,
                 "parcelSize": isPoint ? selectedParcelSize : null,
                 "Date": dateTimeString,
+                "projectId": actualProjectId,
                 // "TimeStamp": Timestamp.fromDate(DateTime.now()),
               });
           await recordContribution(user.uid);
@@ -240,6 +312,12 @@ class _DrawScreenState extends State<DrawScreen> {
               backgroundColor: Colors.red,
             ),
           );
+        }
+      } finally {
+        if (mounted) {
+          setState(() {
+            isLoading = false;
+          });
         }
       }
     }
@@ -266,6 +344,43 @@ class _DrawScreenState extends State<DrawScreen> {
                   onImagePicked: _pickImage,
                   onImageRemoved: _removeImage,
                 ),
+                VerticalSpacing(20),
+                if (isLoadingProjects)
+                  const Center(child: CircularProgressIndicator())
+                else if (availableProjects.isEmpty)
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.orange.shade50,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.orange),
+                    ),
+                    child: const Row(
+                      children: [
+                        Icon(Icons.warning, color: Colors.orange),
+                        SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            'No projects available. Contact admin to be added to a project.',
+                            style: TextStyle(fontSize: 12),
+                          ),
+                        ),
+                      ],
+                    ),
+                  )
+                else
+                  CustomizedDropdown(
+                    value: selectedProjectId,
+                    onChanged: (value) {
+                      setState(() {
+                        selectedProjectId = value;
+                      });
+                    },
+                    hint: "Select Project",
+                    items: availableProjects
+                        .map((project) => project.name)
+                        .toList(),
+                  ),
                 VerticalSpacing(20),
                 CustomizedDropdown(
                   value: selectedgv,
@@ -329,6 +444,18 @@ class _DrawScreenState extends State<DrawScreen> {
                           //   );
                           //   return;
                           // }
+                          if (availableProjects.isNotEmpty && selectedProjectId == null) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text(
+                                  "Please select a project.",
+                                ),
+                                backgroundColor: Colors.red,
+                              ),
+                            );
+                            return;
+                          }
+
                           if (selectedCategory == null) {
                             ScaffoldMessenger.of(context).showSnackBar(
                               const SnackBar(

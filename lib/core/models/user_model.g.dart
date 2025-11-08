@@ -8,7 +8,7 @@ part of 'user_model.dart';
 
 class AppUserAdapter extends TypeAdapter<AppUser> {
   @override
-  final int typeId = 0;
+  final int typeId = 1;
 
   @override
   AppUser read(BinaryReader reader) {

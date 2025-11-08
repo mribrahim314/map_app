@@ -65,7 +65,10 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
           await userDoc.set({
             'email': _email,
-            'role': 'normal',
+            'username': _usernameController.text.trim(),
+            'role': 'viewer', // Default role is viewer
+            'status': 'active', // Status can be: pending, active, rejected
+            'contributorStatus': 'none', // none, pending, approved, rejected
             'contributionCount': 0,
             'contributionRequestSent': false,
             'createdAt': FieldValue.serverTimestamp(),

@@ -62,12 +62,15 @@ String getTargetCollection(bool isPoint, String userRole) {
 
 Future<void> sendPendingSubmissions() async {
   final box = await Hive.openBox<PendingSubmission>('pendingSubmissions');
-  final submissions = box.values.toList();
 
-  if (submissions.isEmpty) return;
+  if (box.isEmpty) return;
 
-  for (var i = 0; i < submissions.length; i++) {
-    final sub = submissions[i];
+  // Get all keys to iterate backwards (safer for deletion)
+  final keys = box.keys.toList().reversed.toList();
+
+  for (var key in keys) {
+    final sub = box.get(key);
+    if (sub == null) continue;
 
     String? uploadedImageUrl;
 
@@ -108,9 +111,8 @@ Future<void> sendPendingSubmissions() async {
           .update({'contributionCount': FieldValue.increment(1)});
       print("Pending submission uploaded: ${doc.id}");
 
-      // Remove from Hive after successful upload
-      await box.deleteAt(i);
-      i--; // adjust index because we removed one
+      // Remove from Hive after successful upload using key
+      await box.delete(key);
     } catch (e) {
       print("Failed to send pending submission: $e");
     }
