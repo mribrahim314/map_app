@@ -183,13 +183,13 @@ Widget buildListSection({
                                 point['lat'],
                               ),
                             ),
-                          ],
+                          ], child: null,
                         ),
                       ),
                     );
                   }
                 }
-              },
+              }, onViewMap: () {  },
             );
           },
         ),

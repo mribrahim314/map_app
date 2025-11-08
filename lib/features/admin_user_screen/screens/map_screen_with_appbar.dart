@@ -11,7 +11,7 @@ class MapScreenWithAppBar extends StatelessWidget {
   final Widget child; // Your original map screen
   final bool showDownloadButton;
 
-  MapScreenWithAppBar({required this.child, this.showDownloadButton = false});
+  MapScreenWithAppBar({required this.child, this.showDownloadButton = false, required List polygonPoints, required List<Point> markers});
 
   @override
   Widget build(BuildContext context) {

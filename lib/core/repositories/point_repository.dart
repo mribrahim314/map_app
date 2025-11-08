@@ -6,7 +6,7 @@ class PointRepository {
   final DatabaseService _db = DatabaseService.instance;
 
   /// Create a new point
-  Future<PointModel> createPoint(PointModel point) async {
+  Future<PointModel> createPoint(PointModel point, {required String district}) async {
     final result = await _db.query(
       '''
       INSERT INTO points (

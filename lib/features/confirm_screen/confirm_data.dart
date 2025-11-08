@@ -211,7 +211,7 @@ class _DrawScreenState extends State<DrawScreen> {
               parcelSize: selectedParcelSize,
             );
 
-            await pointRepo.createPoint(point);
+            await pointRepo.createPoint(point, district: '');
           } else {
             // Create polygon in database
             final polygonRepo = PolygonRepository();
