@@ -274,7 +274,10 @@
 //   }
 // }
 
-import 'package:cloud_firestore/cloud_firestore.dart';
+// ============================================================================
+// CLEANED BY CLAUDE - Removed unused Firebase import
+// ============================================================================
+
 import 'package:flutter/material.dart';
 import 'package:map_app/core/cubit/user_role_cubit.dart';
 import 'package:map_app/core/theming/colors.dart';

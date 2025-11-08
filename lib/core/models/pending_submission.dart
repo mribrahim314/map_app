@@ -5,6 +5,9 @@ import 'package:map_app/core/services/upload_image_to_supabase.dart';
 import 'package:map_app/core/repositories/polygon_repository.dart';
 import 'package:map_app/core/repositories/point_repository.dart';
 import 'package:map_app/core/repositories/user_repository.dart';
+import 'package:map_app/core/models/point_model.dart';
+import 'package:map_app/core/models/polygon_model.dart';
+import 'package:latlong2/latlong.dart';
 
 part 'pending_submission.g.dart';
 
@@ -104,12 +107,11 @@ Future<void> sendPendingSubmissions() async {
       if (sub.collection == 'points') {
         // For points, expect single coordinate
         if (coords.isNotEmpty) {
-          await pointRepo.createPoint(
+          final point = PointModel(
             district: sub.district ?? '',
             gouvernante: sub.gouvernante ?? '',
             type: sub.type ?? '',
-            latitude: coords[0]['lat']!,
-            longitude: coords[0]['lng']!,
+            coordinate: LatLng(coords[0]['lat']!, coords[0]['lng']!),
             message: sub.message,
             imageUrl: uploadedImageUrl,
             userId: sub.userId,
@@ -117,20 +119,26 @@ Future<void> sendPendingSubmissions() async {
             date: DateTime.parse(sub.date),
             parcelSize: sub.parcelSize,
           );
+          await pointRepo.createPoint(point, district: sub.district ?? '');
         }
       } else if (sub.collection == 'polygones') {
         // For polygons, expect multiple coordinates
-        await polygonRepo.createPolygon(
+        final coordinates = coords.map((coord) {
+          return LatLng(coord['lat']!, coord['lng']!);
+        }).toList();
+
+        final polygon = PolygonModel(
           district: sub.district ?? '',
           gouvernante: sub.gouvernante ?? '',
           type: sub.type ?? '',
-          coordinates: coords,
+          coordinates: coordinates,
           message: sub.message,
           imageUrl: uploadedImageUrl,
           userId: sub.userId,
           isAdopted: sub.isAdopted,
           date: DateTime.parse(sub.date),
         );
+        await polygonRepo.createPolygon(polygon);
       }
 
       // Increment user contribution count

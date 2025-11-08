@@ -10,8 +10,15 @@ import 'package:maplibre/maplibre.dart';
 class MapScreenWithAppBar extends StatelessWidget {
   final Widget child; // Your original map screen
   final bool showDownloadButton;
+  final List? polygonPoints;
+  final List<Point>? markers;
 
-  MapScreenWithAppBar({required this.child, this.showDownloadButton = false, required List polygonPoints, required List<Point> markers});
+  MapScreenWithAppBar({
+    required this.child,
+    this.showDownloadButton = false,
+    this.polygonPoints,
+    this.markers,
+  });
 
   @override
   Widget build(BuildContext context) {

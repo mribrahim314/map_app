@@ -1,4 +1,8 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
+// ============================================================================
+// CLEANED BY CLAUDE - Removed Firebase/Firestore dependencies
+// Rewritten to use PostgreSQL repositories
+// ============================================================================
+
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:internet_connection_checker/internet_connection_checker.dart';
@@ -7,6 +11,9 @@ import 'package:map_app/core/theming/colors.dart';
 import 'package:map_app/features/admin_user_screen/widgets/header.dart';
 import 'package:map_app/features/admin_user_screen/services/build_list.dart';
 import 'package:map_app/features/admin_user_screen/services/delete_data.dart';
+import 'package:map_app/core/repositories/user_repository.dart';
+import 'package:map_app/core/repositories/polygon_repository.dart';
+import 'package:map_app/core/repositories/point_repository.dart';
 
 class UserInfoScreen extends StatefulWidget {
   final String userId;
@@ -19,6 +26,9 @@ class UserInfoScreen extends StatefulWidget {
 
 class _UserInfoScreenState extends State<UserInfoScreen> {
   String _selectedView = 'polygons';
+  final UserRepository _userRepo = UserRepository();
+  final PolygonRepository _polygonRepo = PolygonRepository();
+  final PointRepository _pointRepo = PointRepository();
 
   @override
   Widget build(BuildContext context) {
@@ -29,22 +39,19 @@ class _UserInfoScreenState extends State<UserInfoScreen> {
         actions: [
           IconButton(
             onPressed: () async {
-              // Affiche la boîte de dialogue de confirmation
               bool? shouldDelete = await showDialog<bool>(
                 context: context,
                 builder: (BuildContext context) {
                   return AlertDialog(
                     title: Text('Confirmation'),
                     content: Text(
-                      'Are you sure ? This will delete all user Data ',
+                      'Are you sure? This will delete all user data',
                     ),
                     actions: [
-                      // Bouton Annuler
                       TextButton(
                         onPressed: () => Navigator.of(context).pop(false),
                         child: Text('Cancel'),
                       ),
-                      // Bouton Supprimer
                       TextButton(
                         onPressed: () => Navigator.of(context).pop(true),
                         child: Text(
@@ -57,46 +64,33 @@ class _UserInfoScreenState extends State<UserInfoScreen> {
                 },
               );
 
-              // Si l'utilisateur a confirmé (true), on supprime
               if (shouldDelete == true) {
                 await DeleteDataForUser(widget.userId);
-                // Optionnel : afficher un message de succès
                 ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Data successfully deleted !')),
+                  SnackBar(content: Text('Data successfully deleted!')),
                 );
+                if (mounted) {
+                  setState(() {}); // Refresh the UI
+                }
               }
             },
             icon: Icon(Icons.delete_forever_sharp),
           ),
         ],
       ),
-
-      body: StreamBuilder<DocumentSnapshot>(
-        stream: FirebaseFirestore.instance
-            .collection('users')
-            .doc(widget.userId)
-            .snapshots(), // 👈 This listens for real-time changes
+      body: FutureBuilder(
+        future: _userRepo.getUserById(widget.userId),
         builder: (context, userSnapshot) {
           if (userSnapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
           }
 
-          if (!userSnapshot.hasData || !userSnapshot.data!.exists) {
+          if (!userSnapshot.hasData || userSnapshot.data == null) {
             return const Center(child: Text("User not found"));
           }
 
-          final userData = userSnapshot.data!.data() as Map<String, dynamic>;
-          final userRole = userData['role'] as String? ?? 'normal';
-
-          Query polygonQuery;
-          Query pointQuery;
-
-          polygonQuery = FirebaseFirestore.instance
-              .collection('polygones')
-              .where('userId', isEqualTo: widget.userId);
-          pointQuery = FirebaseFirestore.instance
-              .collection('points')
-              .where('userId', isEqualTo: widget.userId);
+          final user = userSnapshot.data!;
+          final userRole = user.role;
 
           return SafeArea(
             child: Padding(
@@ -104,10 +98,10 @@ class _UserInfoScreenState extends State<UserInfoScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  // 👉 Header
+                  // Header
                   UserHeader2(
-                    name: userData['email'] ?? 'Unknown',
-                    role: userData['role'] ?? 'Unknown Role',
+                    name: user.email,
+                    role: user.role,
                     onPressed: () async {
                       final bool isConnected = await InternetConnectionChecker
                           .instance
@@ -125,6 +119,7 @@ class _UserInfoScreenState extends State<UserInfoScreen> {
                         );
                         return;
                       }
+
                       final newRole = await showModalBottomSheet<String>(
                         context: context,
                         builder: (context) {
@@ -159,18 +154,22 @@ class _UserInfoScreenState extends State<UserInfoScreen> {
                                           : Colors.grey,
                                     ),
                                     onTap: () async {
-                                      await FirebaseFirestore.instance
-                                          .collection('users')
-                                          .doc(widget.userId)
-                                          .update({'role': role});
-                                      context.pop();
+                                      try {
+                                        await _userRepo.updateUser(
+                                          widget.userId,
+                                          user.copyWith(role: role),
+                                        );
+                                        Navigator.pop(context, role);
+                                      } catch (e) {
+                                        print('Error updating role: $e');
+                                        Navigator.pop(context);
+                                      }
                                     },
                                   );
                                 }).toList(),
                                 const SizedBox(height: 10),
                                 TextButton(
-                                  onPressed: () =>
-                                      Navigator.pop(context), // Cancel
+                                  onPressed: () => Navigator.pop(context),
                                   child: const Text(
                                     'Cancel',
                                     style: TextStyle(
@@ -185,17 +184,16 @@ class _UserInfoScreenState extends State<UserInfoScreen> {
                       );
 
                       if (newRole != null && newRole != userRole) {
-                        // ✅ Handle role update here
-                        // Example: call context.read<UserCubit>().updateRole(newRole);
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(content: Text('Role updated to $newRole')),
                         );
+                        setState(() {}); // Refresh the UI
                       }
                     },
                   ),
                   SizedBox(height: 10.h),
 
-                  // 👉 Toggle Button
+                  // Toggle Button
                   Center(
                     child: SegmentedButton<String>(
                       segments: const [
@@ -218,21 +216,19 @@ class _UserInfoScreenState extends State<UserInfoScreen> {
                   ),
                   SizedBox(height: 20.h),
 
-                  // 👉 Show Selected List
+                  // Show Selected List
                   Expanded(
                     child: _selectedView == 'polygons'
                         ? buildListSection(
                             title: "polygones",
-                            query: polygonQuery,
+                            userId: widget.userId,
                             emptyText: "No polygons yet",
                           )
-                        : _selectedView == 'points'
-                        ? buildListSection(
+                        : buildListSection(
                             title: "points",
-                            query: pointQuery,
+                            userId: widget.userId,
                             emptyText: "No points yet",
-                          )
-                        : Container(),
+                          ),
                   ),
                 ],
               ),

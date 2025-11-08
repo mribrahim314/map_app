@@ -155,10 +155,16 @@ Widget buildListSection({
                   context.read<PolygonCubit>().setCoord(points);
                   context.read<CoordinatesCubit>().setCoordinate(points);
 
+                  // Calculate center of polygon for map initial position
+                  final firstPoint = points.isNotEmpty ? points.first : null;
+                  final lat = firstPoint != null ? firstPoint['lat'] as double : 0.0;
+                  final lng = firstPoint != null ? firstPoint['lng'] as double : 0.0;
+
                   Navigator.push(
                     context,
                     MaterialPageRoute(
                       builder: (context) => MapScreenWithAppBar(
+                        child: MapScreen(latitude: lat, longitude: lng),
                         polygonPoints: points,
                         markers: [],
                       ),
@@ -171,19 +177,20 @@ Widget buildListSection({
                     final point = coordinates.first;
                     context.read<CoordinatesCubit>().setCoordinate([point]);
 
+                    final lat = point['lat'] as double;
+                    final lng = point['lng'] as double;
+
                     Navigator.push(
                       context,
                       MaterialPageRoute(
                         builder: (context) => MapScreenWithAppBar(
+                          child: MapScreen(latitude: lat, longitude: lng),
                           polygonPoints: [],
                           markers: [
                             Point(
-                              coordinates: Position(
-                                point['lng'],
-                                point['lat'],
-                              ),
+                              coordinates: Position(lng, lat),
                             ),
-                          ], child: null,
+                          ],
                         ),
                       ),
                     );

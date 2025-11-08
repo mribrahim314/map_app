@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:map_app/core/routing/routes.dart';
 import 'package:map_app/features/about_and_feedback/about_screen.dart';
 import 'package:map_app/features/admin_screen/export_screen.dart';
-import 'package:map_app/features/draw_sceen/draw_screen.dart';
+import 'package:map_app/features/confirm_screen/confirm_data.dart';
 import 'package:map_app/features/login_and_signup/login_screen.dart';
 import 'package:map_app/features/main_screen/main_screen.dart';
 import 'package:map_app/features/map_page/map_screen.dart';
@@ -27,7 +27,7 @@ class AppRouter {
         return MaterialPageRoute(builder: (_) => MainScreen());
 
       case Routes.drawScreen:
-        return MaterialPageRoute(builder: (_) => DrawScreen());
+        return MaterialPageRoute(builder: (_) => const DrawScreen());
 
       case Routes.signUpScreen:
         return MaterialPageRoute(builder: (_) => SignUpScreen());
