@@ -11,14 +11,10 @@ import 'package:map_app/core/services/upload_image_to_supabase.dart';
 import 'package:map_app/core/theming/styles.dart';
 import 'package:map_app/core/widgets/app_text_button.dart';
 import 'package:map_app/core/widgets/customized_text_field.dart';
-import 'package:map_app/core/widgets/image_picker_widget.dart';
 import 'package:map_app/features/admin_user_screen/widgets/image_picker2.dart';
 import 'package:map_app/features/confirm_screen/drop_down.dart';
 import 'package:map_app/core/helpers/spacing.dart';
 import 'package:map_app/core/repositories/polygon_repository.dart';
-import 'package:map_app/core/repositories/point_repository.dart';
-import 'package:map_app/core/models/polygon_model.dart';
-import 'package:map_app/core/models/point_model.dart';
 
 class EditScreen extends StatefulWidget {
   final polygonId;

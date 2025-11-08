@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:hive/hive.dart';
 import 'package:map_app/core/models/pending_submission.dart';
 import 'package:map_app/core/routing/app_router.dart';
 import 'package:map_app/features/cnrs_app.dart';

@@ -6,7 +6,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:internet_connection_checker/internet_connection_checker.dart';
-import 'package:map_app/core/helpers/extensions.dart';
 import 'package:map_app/core/theming/colors.dart';
 import 'package:map_app/features/admin_user_screen/widgets/header.dart';
 import 'package:map_app/features/admin_user_screen/services/build_list.dart';

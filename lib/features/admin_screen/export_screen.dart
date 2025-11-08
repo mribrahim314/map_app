@@ -151,7 +151,7 @@ class _ExportScreenState extends State<ExportScreen> {
         userId: _selectedUserId,
       );
       String selectedType = (_selectedType == "Specific User")
-          ? _userNameController.text.trim()!
+          ? _userNameController.text.trim()
           : _selectedType!;
       String myFileName =
           "${_selectedCategory!.split(' - ').last.trim()} - ${selectedType}";

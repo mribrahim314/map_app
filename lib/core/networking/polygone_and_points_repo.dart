@@ -5,7 +5,6 @@
 import 'package:maplibre/maplibre.dart';
 import 'package:map_app/core/repositories/point_repository.dart';
 import 'package:map_app/core/repositories/polygon_repository.dart' as repo;
-import 'package:map_app/core/services/auth_service.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 /// Wrapper for PointRepository to maintain compatibility with old code
