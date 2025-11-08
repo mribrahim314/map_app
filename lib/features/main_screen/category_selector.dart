@@ -1,4 +1,7 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
+// ============================================================================
+// CLEANED BY CLAUDE - Firebase removed, dead code eliminated
+// ============================================================================
+
 import 'package:flutter/material.dart';
 import 'package:map_app/core/cubit/coordinates_cubit.dart';
 import 'package:map_app/core/cubit/polygone_cubit.dart';
@@ -13,10 +16,10 @@ class CategorySelector extends StatefulWidget {
 }
 
 class _CategorySelectorState extends State<CategorySelector> {
-  // String selectedCategory = "Select category";
   List<String> selectedCategories = [];
   List<String> categoriesWithMyData = List.from(Data.Categories)
     ..insert(0, "My Data");
+
   @override
   Widget build(BuildContext context) {
     return Column(
@@ -64,8 +67,8 @@ class _CategorySelectorState extends State<CategorySelector> {
             separatorBuilder: (_, __) => const SizedBox(width: 8),
             itemBuilder: (context, index) {
               final category = categoriesWithMyData[index];
-              // final isSelected = selectedCategory == category;
               final isSelected = selectedCategories.contains(category);
+
               return ChoiceChip(
                 label: Row(
                   children: [const SizedBox(width: 4), Text(category)],
@@ -73,7 +76,6 @@ class _CategorySelectorState extends State<CategorySelector> {
                 selected: isSelected,
                 selectedColor: Colors.blue,
                 backgroundColor: Colors.white,
-
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(24),
                 ),
@@ -81,94 +83,7 @@ class _CategorySelectorState extends State<CategorySelector> {
                   color: isSelected ? Colors.white : Colors.black,
                 ),
                 onSelected: (_) async {
-                  // try {
-                  //   final snapshot = await FirebaseFirestore.instance
-                  //       .collection("polygones")
-                  //       .get();
-
-                  //   for (var doc in snapshot.docs) {
-                  //     final coords = doc['coordinates'] as List<dynamic>?;
-
-                  //     if (coords == null || coords.isEmpty) {
-                  //       print("⚠️ Polygone vide détecté !");
-                  //       print("Document ID: ${doc.id}");
-                  //       print("Données: ${doc.data()}");
-                  //     } else {
-                  //       print(
-                  //         "✅ Polygone valide, Document ID: ${doc.id}, points: ${coords.length}",
-                  //       );
-                  //     }
-                  //   }
-                  // } catch (e) {
-                  //   print("Erreur lors de la vérification des polygones : $e");
-                  // }
-
-                  bool isSingleFruitCategory(List<String> categories) {
-                    return categories.length == 1 &&
-                        categories.first != "My Data";
-                  }
-
-                  if (category == "My Data") {
-                    if (selectedCategories.isEmpty) {
-                      setState(() {
-                        selectedCategories = ["My Data"];
-                      });
-                    } else if (isSingleFruitCategory(selectedCategories)) {
-                      setState(() {
-                        selectedCategories = [selectedCategories[0], "My Data"];
-                      });
-                      await context.read<PolygonCubit>().addMainPolygons(
-                        selectedCategories[0],
-                        CurrentUser: true,
-                      );
-                      // await context
-                      //     .read<CoordinatesCubit>()
-                      //     .getPointsFromFireBase(
-                      //       selectedCategories[0],
-                      //       CurrentUser: true,
-                      //     );
-                    } else {
-                      setState(() {
-                        selectedCategories = [];
-                      });
-                      context.read<PolygonCubit>().clearAll();
-                      context.read<CoordinatesCubit>().clear();
-                    }
-                  } else {
-                    if (selectedCategories.contains(category)) {
-                      setState(() {
-                        selectedCategories.remove(category);
-                      });
-                      context.read<PolygonCubit>().clearAll();
-                      context.read<CoordinatesCubit>().clear();
-                    } else if (selectedCategories.isEmpty ||
-                        isSingleFruitCategory(selectedCategories)) {
-                      setState(() {
-                        selectedCategories = [category];
-                      });
-                      context.read<PolygonCubit>().clearAll();
-                      context.read<CoordinatesCubit>().clear();
-                      await context.read<PolygonCubit>().addMainPolygons(
-                        category,
-                      );
-                      // await context
-                      //     .read<CoordinatesCubit>()
-                      //     .getPointsFromFireBase(category);
-                    } else {
-                      setState(() {
-                        selectedCategories = [category, "My Data"];
-                      });
-                      context.read<PolygonCubit>().clearAll();
-                      context.read<CoordinatesCubit>().clear();
-                      await context.read<PolygonCubit>().addMainPolygons(
-                        category,
-                        CurrentUser: true,
-                      );
-                      // await context
-                      //     .read<CoordinatesCubit>()
-                      //     .getPointsFromFireBase(category, CurrentUser: true);
-                    }
-                  }
+                  _handleCategorySelection(category);
                 },
               );
             },
@@ -177,11 +92,58 @@ class _CategorySelectorState extends State<CategorySelector> {
       ],
     );
   }
-}
 
-class _CategoryItem {
-  final String label;
-  final IconData icon;
+  bool _isSingleFruitCategory(List<String> categories) {
+    return categories.length == 1 && categories.first != "My Data";
+  }
 
-  _CategoryItem(this.label, this.icon);
+  Future<void> _handleCategorySelection(String category) async {
+    if (category == "My Data") {
+      if (selectedCategories.isEmpty) {
+        setState(() {
+          selectedCategories = ["My Data"];
+        });
+      } else if (_isSingleFruitCategory(selectedCategories)) {
+        setState(() {
+          selectedCategories = [selectedCategories[0], "My Data"];
+        });
+        await context.read<PolygonCubit>().addMainPolygons(
+          selectedCategories[0],
+          CurrentUser: true,
+        );
+      } else {
+        setState(() {
+          selectedCategories = [];
+        });
+        context.read<PolygonCubit>().clearAll();
+        context.read<CoordinatesCubit>().clear();
+      }
+    } else {
+      if (selectedCategories.contains(category)) {
+        setState(() {
+          selectedCategories.remove(category);
+        });
+        context.read<PolygonCubit>().clearAll();
+        context.read<CoordinatesCubit>().clear();
+      } else if (selectedCategories.isEmpty ||
+          _isSingleFruitCategory(selectedCategories)) {
+        setState(() {
+          selectedCategories = [category];
+        });
+        context.read<PolygonCubit>().clearAll();
+        context.read<CoordinatesCubit>().clear();
+        await context.read<PolygonCubit>().addMainPolygons(category);
+      } else {
+        setState(() {
+          selectedCategories = [category, "My Data"];
+        });
+        context.read<PolygonCubit>().clearAll();
+        context.read<CoordinatesCubit>().clear();
+        await context.read<PolygonCubit>().addMainPolygons(
+          category,
+          CurrentUser: true,
+        );
+      }
+    }
+  }
 }

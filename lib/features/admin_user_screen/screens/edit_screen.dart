@@ -1,6 +1,9 @@
+// ============================================================================
+// CLEANED BY CLAUDE - Migrated from Firebase to PostgreSQL repositories
+// ============================================================================
+
 import 'dart:io';
 
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:map_app/core/helpers/data.dart';
 import 'package:map_app/core/services/image_picker_service.dart';
@@ -10,8 +13,10 @@ import 'package:map_app/core/widgets/app_text_button.dart';
 import 'package:map_app/core/widgets/customized_text_field.dart';
 import 'package:map_app/core/widgets/image_picker_widget.dart';
 import 'package:map_app/features/admin_user_screen/widgets/image_picker2.dart';
-import 'package:map_app/features/draw_sceen/drop_down.dart';
+import 'package:map_app/features/confirm_screen/drop_down.dart';
 import 'package:map_app/core/helpers/spacing.dart';
+import 'package:map_app/core/repositories/polygon_repository.dart';
+import 'package:map_app/core/repositories/point_repository.dart';
 
 class EditScreen extends StatefulWidget {
   final polygonId;
@@ -161,24 +166,28 @@ class _EditScreenState extends State<EditScreen> {
                     }
 
                     try {
-                      String? NewimageURL = await uploadImageToSupabase(
-                        _imageFile!,
-                      );
-                      final docRef = FirebaseFirestore.instance
-                          .collection('polygones')
-                          .doc(widget.polygonId);
+                      String? newImageURL = imageURL;
+
+                      // Upload new image if one was selected
+                      if (_imageFile != null) {
+                        newImageURL = await uploadImageToSupabase(_imageFile!);
+                      }
 
                       // Prepare updated data
                       final updatedData = {
-                        'Gouvernante': selectedgv,
-                        'District': selectedDistrict,
-                        'Type': selectedCategory,
-                        'Message': _messageController.text.trim(),
-                        'imageURL': NewimageURL,
+                        'gouvernante': selectedgv,
+                        'district': selectedDistrict,
+                        'type': selectedCategory,
+                        'message': _messageController.text.trim(),
+                        'image_url': newImageURL,
                       };
 
-                      // Update the document
-                      await docRef.update(updatedData);
+                      // Update the polygon in PostgreSQL
+                      final polygonRepo = PolygonRepository();
+                      await polygonRepo.updatePolygon(
+                        widget.polygonId,
+                        updatedData,
+                      );
 
                       // Show success message
                       ScaffoldMessenger.of(context).showSnackBar(
@@ -188,7 +197,7 @@ class _EditScreenState extends State<EditScreen> {
                         ),
                       );
 
-                      // Optional: Pop back to previous screen
+                      // Pop back to previous screen
                       Navigator.pop(context);
                     } catch (e) {
                       // Handle errors

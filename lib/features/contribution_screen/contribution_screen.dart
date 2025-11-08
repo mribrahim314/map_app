@@ -1,10 +1,14 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+// ============================================================================
+// CLEANED BY CLAUDE - Migrated from Firebase to PostgreSQL/AuthService
+// ============================================================================
+
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:map_app/core/services/auth_service.dart';
 import 'package:map_app/core/theming/colors.dart';
 import 'package:map_app/features/admin_user_screen/services/build_list.dart';
 import 'package:map_app/features/admin_user_screen/services/build_list_offline.dart';
+import 'package:provider/provider.dart';
 
 class ContributionsScreen extends StatefulWidget {
   const ContributionsScreen({super.key});
@@ -18,7 +22,9 @@ class _ContributionsScreenState extends State<ContributionsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final user = FirebaseAuth.instance.currentUser;
+    final authService = Provider.of<AuthService>(context, listen: false);
+    final user = authService.currentUser;
+
     if (user == null) {
       return Scaffold(
         body: Center(
@@ -37,16 +43,7 @@ class _ContributionsScreenState extends State<ContributionsScreen> {
       );
     }
 
-    // Build queries for current user
-    final polygonQuery = FirebaseFirestore.instance
-        .collection('polygones')
-        .where('userId', isEqualTo: user.uid);
-    // .orderBy('TimeStamp', descending: true);
-
-    final pointQuery = FirebaseFirestore.instance
-        .collection('points')
-        .where('userId', isEqualTo: user.uid);
-    // .orderBy('TimeStamp', descending: true);
+    final userId = user.id;
 
     return Scaffold(
       appBar: AppBar(
@@ -96,13 +93,13 @@ class _ContributionsScreenState extends State<ContributionsScreen> {
                 child: _selectedView == 'polygons'
                     ? buildListSection(
                         title: "polygones",
-                        query: polygonQuery,
+                        userId: userId,
                         emptyText: "You haven't added any polygons yet.",
                       )
                     : _selectedView == 'points'
                     ? buildListSection(
                         title: "points",
-                        query: pointQuery,
+                        userId: userId,
                         emptyText: "You haven't added any points yet.",
                       )
                     : buildOfflineUnifiedList(
