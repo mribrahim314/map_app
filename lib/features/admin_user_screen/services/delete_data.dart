@@ -1,33 +1,35 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
+// ============================================================================
+// CLEANED BY CLAUDE - Removed Firebase/Firestore dependencies
+// ============================================================================
+
+import 'package:map_app/core/repositories/polygon_repository.dart';
+import 'package:map_app/core/repositories/point_repository.dart';
+import 'package:map_app/core/repositories/user_repository.dart';
 
 Future<void> DeleteDataForUser(String userId) async {
   try {
-    final firestore = FirebaseFirestore.instance;
-    // Supprimer les polygones
-    final polygonesQuery = firestore
-        .collection('polygones')
-        .where('userId', isEqualTo: userId);
-    final polygonesSnapshot = await polygonesQuery.get();
-    for (var doc in polygonesSnapshot.docs) {
-      await doc.reference.delete();
+    final polygonRepo = PolygonRepository();
+    final pointRepo = PointRepository();
+    final userRepo = UserRepository();
+
+    // Delete all polygons for this user
+    await polygonRepo.deletePolygonsByUserId(userId);
+
+    // Delete all points for this user
+    await pointRepo.deletePointsByUserId(userId);
+
+    // Reset user contribution count
+    final user = await userRepo.getUserById(userId);
+    if (user != null) {
+      await userRepo.updateUser(
+        user.id,
+        user.copyWith(contributionCount: 0),
+      );
     }
 
-    // Supprimer les points
-    final pointsQuery = firestore
-        .collection('points')
-        .where('userId', isEqualTo: userId);
-    final pointsSnapshot = await pointsQuery.get();
-    for (var doc in pointsSnapshot.docs) {
-      await doc.reference.delete();
-    }
-  await firestore
-        .collection('users')
-        .doc(userId)
-        .update({'contributionCount': 0});
-
-    print('Données supprimées avec succès pour userId: $userId');
+    print('Data successfully deleted for userId: $userId');
   } catch (e) {
-    print('Erreur lors de la suppression : $e');
-    rethrow; // Optionnel : pour propager l'erreur si besoin
+    print('Error during deletion: $e');
+    rethrow;
   }
 }

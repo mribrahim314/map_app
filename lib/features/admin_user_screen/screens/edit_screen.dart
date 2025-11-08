@@ -17,6 +17,8 @@ import 'package:map_app/features/confirm_screen/drop_down.dart';
 import 'package:map_app/core/helpers/spacing.dart';
 import 'package:map_app/core/repositories/polygon_repository.dart';
 import 'package:map_app/core/repositories/point_repository.dart';
+import 'package:map_app/core/models/polygon_model.dart';
+import 'package:map_app/core/models/point_model.dart';
 
 class EditScreen extends StatefulWidget {
   final polygonId;
@@ -173,20 +175,27 @@ class _EditScreenState extends State<EditScreen> {
                         newImageURL = await uploadImageToSupabase(_imageFile!);
                       }
 
-                      // Prepare updated data
-                      final updatedData = {
-                        'gouvernante': selectedgv,
-                        'district': selectedDistrict,
-                        'type': selectedCategory,
-                        'message': _messageController.text.trim(),
-                        'image_url': newImageURL,
-                      };
+                      // Fetch current polygon data and update it
+                      final polygonRepo = PolygonRepository();
+                      final currentPolygon = await polygonRepo.getPolygonById(widget.polygonId);
+
+                      if (currentPolygon == null) {
+                        throw Exception('Polygon not found');
+                      }
+
+                      // Create updated polygon model
+                      final updatedPolygon = currentPolygon.copyWith(
+                        gouvernante: selectedgv ?? currentPolygon.gouvernante,
+                        district: selectedDistrict ?? currentPolygon.district,
+                        type: selectedCategory ?? currentPolygon.type,
+                        message: _messageController.text.trim(),
+                        imageUrl: newImageURL,
+                      );
 
                       // Update the polygon in PostgreSQL
-                      final polygonRepo = PolygonRepository();
                       await polygonRepo.updatePolygon(
                         widget.polygonId,
-                        updatedData,
+                        updatedPolygon,
                       );
 
                       // Show success message

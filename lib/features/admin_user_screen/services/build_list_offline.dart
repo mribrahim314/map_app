@@ -1,4 +1,7 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
+// ============================================================================
+// CLEANED BY CLAUDE - Removed Firebase/Firestore dependencies
+// ============================================================================
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:hive/hive.dart';
@@ -106,7 +109,7 @@ Widget buildOfflineUnifiedList({
               data: itemData,
               onAdopt: () async {},
               onViewMap: () {
-                final List<GeoPoint> coords = item.coordinates;
+                final coords = item.coordinates as List;
 
                 if (isPolygon) {
                   // It's a polygon
@@ -117,20 +120,23 @@ Widget buildOfflineUnifiedList({
                   // It's a point
                   final coordinatesCubit = context.read<CoordinatesCubit>();
                   final first = coords[0];
-                  coordinatesCubit.addPoint(
-                    Position(first.longitude, first.latitude),
-                  );
+                  final lat = first['lat'] as double;
+                  final lng = first['lng'] as double;
+                  coordinatesCubit.addPoint(Position(lng, lat));
                 }
 
                 // Navigate to map — center on first coordinate
+                final firstCoord = coords[0];
+                final lat = firstCoord['lat'] as double;
+                final lng = firstCoord['lng'] as double;
+
                 Navigator.push(
                   context,
                   MaterialPageRoute(
                     builder: (context) => MapScreenWithAppBar(
-                      child: MapScreen(
-                        longitude: coords[0].longitude,
-                        latitude: coords[0].latitude,
-                      ),
+                      child: MapScreen(longitude: lng, latitude: lat),
+                      polygonPoints: [],
+                      markers: [],
                     ),
                   ),
                 );
