@@ -13,10 +13,20 @@ import 'package:map_app/core/database/db_config.dart';
 import 'package:map_app/core/services/auth_service.dart';
 
 void main() async {
-  await Hive.initFlutter();
   runZonedGuarded(
     () async {
       WidgetsFlutterBinding.ensureInitialized();
+
+      // Initialize Hive for local storage
+      await Hive.initFlutter();
+
+      // Load environment variables from .env file
+      await DbConfig.initialize();
+
+      // Validate configuration
+      if (!DbConfig.validate()) {
+        print('Warning: Some configuration values are missing. Please check your .env file.');
+      }
 
       // Initialize PostgreSQL database connection
       DatabaseService.initialize(
@@ -41,20 +51,28 @@ void main() async {
         print('Please ensure PostgreSQL is running and credentials are correct.');
       }
 
-      // Initialize Supabase for image storage
-      await Supabase.initialize(
-        url: 'https://tyvalriflbijrytdtyqc.supabase.co',
-        anonKey:
-            'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InR5dmFscmlmbGJpanJ5dGR0eXFjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTcxNjUwMzAsImV4cCI6MjA3Mjc0MTAzMH0.6l2ZDsf7VDDUkzFdrV9rvhQwnvGveLf5cpUff0ER8JY',
-      );
+      // Initialize Supabase for image storage using environment variables
+      if (DbConfig.supabaseUrl.isNotEmpty && DbConfig.supabaseAnonKey.isNotEmpty) {
+        await Supabase.initialize(
+          url: DbConfig.supabaseUrl,
+          anonKey: DbConfig.supabaseAnonKey,
+        );
+        print('Supabase initialized successfully');
+      } else {
+        print('Warning: Supabase configuration missing. Image upload will not work.');
+      }
 
       // Register Hive adapters for offline storage
       Hive.registerAdapter(PendingSubmissionAdapter());
 
+      // Initialize AuthService and restore session
+      final authService = AuthService();
+      await authService.initializeSession();
+
       runApp(
         MultiProvider(
           providers: [
-            ChangeNotifierProvider(create: (_) => AuthService()),
+            ChangeNotifierProvider.value(value: authService),
           ],
           child: CNRSapp(appRouter: AppRouter()),
         ),

@@ -1,8 +1,10 @@
 import 'dart:io';
 
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:hive/hive.dart';
 import 'package:map_app/core/services/upload_image_to_supabase.dart';
+import 'package:map_app/core/repositories/polygon_repository.dart';
+import 'package:map_app/core/repositories/point_repository.dart';
+import 'package:map_app/core/repositories/user_repository.dart';
 
 part 'pending_submission.g.dart';
 
@@ -60,11 +62,16 @@ String getTargetCollection(bool isPoint, String userRole) {
   return isPoint ? 'points' : 'polygones';
 }
 
+/// Send all pending submissions to PostgreSQL database
 Future<void> sendPendingSubmissions() async {
   final box = await Hive.openBox<PendingSubmission>('pendingSubmissions');
   final submissions = box.values.toList();
 
   if (submissions.isEmpty) return;
+
+  final polygonRepo = PolygonRepository();
+  final pointRepo = PointRepository();
+  final userRepo = UserRepository();
 
   for (var i = 0; i < submissions.length; i++) {
     final sub = submissions[i];
@@ -83,36 +90,60 @@ Future<void> sendPendingSubmissions() async {
         }
       }
     }
-    final firestoreCoordinates = sub.coordinates.map((coord) {
-      return GeoPoint(coord['lat'], coord['lng']);
+
+    // Convert coordinates to proper format
+    final coords = (sub.coordinates as List).map((coord) {
+      return {
+        'lat': coord['lat'] as double,
+        'lng': coord['lng'] as double,
+      };
     }).toList();
-    // Send to Firestore
+
     try {
-      final doc = await FirebaseFirestore.instance
-          .collection(sub.collection)
-          .add({
-            "District": sub.district,
-            "Gouvernante": sub.gouvernante,
-            "coordinates": firestoreCoordinates,
-            "Type": sub.type,
-            "Message": sub.message,
-            "imageURL": uploadedImageUrl,
-            "userId": sub.userId,
-            "isAdopted": sub.isAdopted,
-            "parcelSize": sub.parcelSize,
-            "Date": sub.date,
-          });
-      await FirebaseFirestore.instance
-          .collection('users')
-          .doc(sub.userId)
-          .update({'contributionCount': FieldValue.increment(1)});
-      print("Pending submission uploaded: ${doc.id}");
+      // Send to PostgreSQL based on collection type
+      if (sub.collection == 'points') {
+        // For points, expect single coordinate
+        if (coords.isNotEmpty) {
+          await pointRepo.createPoint(
+            district: sub.district ?? '',
+            gouvernante: sub.gouvernante ?? '',
+            type: sub.type ?? '',
+            latitude: coords[0]['lat']!,
+            longitude: coords[0]['lng']!,
+            message: sub.message,
+            imageUrl: uploadedImageUrl,
+            userId: sub.userId,
+            isAdopted: sub.isAdopted,
+            date: DateTime.parse(sub.date),
+            parcelSize: sub.parcelSize,
+          );
+        }
+      } else if (sub.collection == 'polygones') {
+        // For polygons, expect multiple coordinates
+        await polygonRepo.createPolygon(
+          district: sub.district ?? '',
+          gouvernante: sub.gouvernante ?? '',
+          type: sub.type ?? '',
+          coordinates: coords,
+          message: sub.message,
+          imageUrl: uploadedImageUrl,
+          userId: sub.userId,
+          isAdopted: sub.isAdopted,
+          date: DateTime.parse(sub.date),
+        );
+      }
+
+      // Increment user contribution count
+      await userRepo.incrementContributionCount(sub.userId);
+
+      print("Pending submission uploaded successfully");
 
       // Remove from Hive after successful upload
       await box.deleteAt(i);
-      i--; // adjust index because we removed one
+      i--; // Adjust index because we removed one
     } catch (e) {
       print("Failed to send pending submission: $e");
+      // Keep the submission in the queue for retry
     }
   }
 }

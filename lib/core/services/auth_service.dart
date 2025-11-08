@@ -1,12 +1,16 @@
 import 'package:flutter/foundation.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'dart:convert';
 import '../repositories/user_repository.dart';
 import '../models/user_model.dart';
 
 /// Authentication service to replace Firebase Auth
 class AuthService extends ChangeNotifier {
   final UserRepository _userRepo = UserRepository();
+  final FlutterSecureStorage _secureStorage = const FlutterSecureStorage();
   UserModel? _currentUser;
-  String? _sessionToken; // In production, use JWT or secure token
+  static const String _userIdKey = 'user_id';
+  static const String _userDataKey = 'user_data';
 
   /// Get current authenticated user
   UserModel? get currentUser => _currentUser;
@@ -37,8 +41,9 @@ class AuthService extends ChangeNotifier {
         role: role,
       );
 
-      // Set current user
+      // Set current user and save session
       _currentUser = user;
+      await _saveSession(user);
       notifyListeners();
 
       return user;
@@ -63,6 +68,7 @@ class AuthService extends ChangeNotifier {
       }
 
       _currentUser = user;
+      await _saveSession(user);
       notifyListeners();
 
       return user;
@@ -74,7 +80,7 @@ class AuthService extends ChangeNotifier {
   /// Sign out
   Future<void> signOut() async {
     _currentUser = null;
-    _sessionToken = null;
+    await _clearSession();
     notifyListeners();
   }
 
@@ -155,11 +161,45 @@ class AuthService extends ChangeNotifier {
   }
 
   /// Initialize session from stored credentials
-  /// In production, implement secure token storage
   Future<void> initializeSession() async {
-    // TODO: Implement secure session management
-    // For now, user needs to sign in each time
-    _currentUser = null;
-    notifyListeners();
+    try {
+      final userId = await _secureStorage.read(key: _userIdKey);
+      if (userId != null) {
+        final user = await _userRepo.getUserById(userId);
+        if (user != null) {
+          _currentUser = user;
+          notifyListeners();
+        } else {
+          // User not found, clear session
+          await _clearSession();
+        }
+      }
+    } catch (e) {
+      print('Failed to initialize session: $e');
+      await _clearSession();
+    }
+  }
+
+  /// Save user session to secure storage
+  Future<void> _saveSession(UserModel user) async {
+    try {
+      await _secureStorage.write(key: _userIdKey, value: user.id);
+      await _secureStorage.write(
+        key: _userDataKey,
+        value: jsonEncode(user.toMap()),
+      );
+    } catch (e) {
+      print('Failed to save session: $e');
+    }
+  }
+
+  /// Clear user session from secure storage
+  Future<void> _clearSession() async {
+    try {
+      await _secureStorage.delete(key: _userIdKey);
+      await _secureStorage.delete(key: _userDataKey);
+    } catch (e) {
+      print('Failed to clear session: $e');
+    }
   }
 }

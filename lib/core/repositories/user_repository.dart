@@ -1,5 +1,4 @@
-import 'package:crypto/crypto.dart';
-import 'dart:convert';
+import 'package:bcrypt/bcrypt.dart';
 import 'package:uuid/uuid.dart';
 import '../database/database_service.dart';
 import '../models/user_model.dart';
@@ -47,25 +46,31 @@ class UserRepository {
     required String email,
     required String password,
   }) async {
-    final passwordHash = _hashPassword(password);
-
+    // First, get the user by email to retrieve the password hash
     final result = await _db.query(
       '''
-      SELECT id, email, role, contribution_count, contribution_request_sent, created_at, updated_at
+      SELECT id, email, password_hash, role, contribution_count, contribution_request_sent, created_at, updated_at
       FROM users
-      WHERE email = @email AND password_hash = @password_hash
+      WHERE email = @email
       ''',
-      parameters: {
-        'email': email,
-        'password_hash': passwordHash,
-      },
+      parameters: {'email': email},
     );
 
     if (result.isEmpty) {
       return null;
     }
 
-    return UserModel.fromMap(result.first.toColumnMap());
+    final row = result.first.toColumnMap();
+    final storedHash = row['password_hash'] as String?;
+
+    // Verify password using bcrypt
+    if (storedHash == null || !_verifyPassword(password, storedHash)) {
+      return null;
+    }
+
+    // Remove password_hash from the map before creating UserModel
+    row.remove('password_hash');
+    return UserModel.fromMap(row);
   }
 
   /// Get user by ID
@@ -182,10 +187,14 @@ class UserRepository {
     );
   }
 
-  /// Hash password using SHA256
+  /// Hash password using bcrypt (secure hashing algorithm)
   String _hashPassword(String password) {
-    final bytes = utf8.encode(password);
-    return sha256.convert(bytes).toString();
+    return BCrypt.hashpw(password, BCrypt.gensalt());
+  }
+
+  /// Verify password against hash
+  bool _verifyPassword(String password, String hash) {
+    return BCrypt.checkpw(password, hash);
   }
 
   /// Check if email exists
