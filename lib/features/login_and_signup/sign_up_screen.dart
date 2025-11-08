@@ -1,12 +1,10 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:map_app/core/helpers/extensions.dart';
 import 'package:map_app/core/helpers/spacing.dart';
-import 'package:map_app/core/models/user_model.dart';
 import 'package:map_app/core/networking/internet_connexion.dart';
 import 'package:map_app/core/routing/routes.dart';
-import 'package:map_app/core/services/hive_service.dart';
+import 'package:map_app/core/services/auth_service.dart';
 import 'package:map_app/core/theming/colors.dart';
 import 'package:map_app/core/theming/styles.dart';
 import 'package:map_app/core/widgets/app_text_button.dart';
@@ -47,51 +45,21 @@ class _SignUpScreenState extends State<SignUpScreen> {
     Future<void> _onSignUpPressed() async {
       bool online = await checkInternetAndNotify(context);
       if (!online) return;
+
       try {
         if (_formKey.currentState!.validate()) {
-          final String _email = _usernameController.text.trim() + "@test.com";
+          final authService = Provider.of<AuthService>(context, listen: false);
+          final String email = _usernameController.text.trim() + "@test.com";
+          final String password = _passwordController.text.trim();
 
-          final _userCredential = await FirebaseAuth.instance
-              .createUserWithEmailAndPassword(
-                email: _email,
-                password: _passwordController.text.trim(),
-              );
+          // Create user with PostgreSQL
+          await authService.signUp(
+            email: email,
+            password: password,
+            role: 'normal',
+          );
 
-          print(_userCredential);
-
-          final userDoc = FirebaseFirestore.instance
-              .collection('users')
-              .doc(_userCredential.user!.uid);
-
-          await userDoc.set({
-            'email': _email,
-            'role': 'normal',
-            'contributionCount': 0,
-            'contributionRequestSent': false,
-            'createdAt': FieldValue.serverTimestamp(),
-          });
-
-          // Fetch the newly created user data from Firestore
-          final docSnapshot = await userDoc.get();
-          final userData = docSnapshot.data();
-
-          // if (userData != null) {
-          //   // Convert to your AppUser model
-          //   final user = AppUser(
-          //     name: _usernameController.text
-          //         .trim(), // or userData['name'] if saved
-          //     role: userData['role'] ?? 'normal',
-          //     contributionCount: userData['contributionCount'] ?? 0,
-          //     requestSent: userData['contributionRequestSent'] ?? false,
-          //   );
-
-          //   // Save user to Hive via your HiveService
-          //   final hiveService = HiveService();
-          //   await hiveService.saveUser(user);
-          // }
-
-          // No need for SharedPreferences anymore
-          // await saveUserRole('normal');  <-- remove this line if it’s SharedPreferences
+          if (!mounted) return;
 
           context.pushReplacementNamed(Routes.mainScreen);
 
@@ -100,7 +68,15 @@ class _SignUpScreenState extends State<SignUpScreen> {
           );
         }
       } catch (e) {
-        print(e);
+        print('Sign up error: $e');
+        if (!mounted) return;
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(e.toString().replaceAll('Exception: ', '')),
+            backgroundColor: Colors.red,
+          ),
+        );
       }
     }
 

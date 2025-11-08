@@ -1,10 +1,10 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:map_app/core/helpers/extensions.dart';
 import 'package:map_app/core/helpers/spacing.dart';
 import 'package:map_app/core/networking/internet_connexion.dart';
 import 'package:map_app/core/routing/routes.dart';
+import 'package:map_app/core/services/auth_service.dart';
 import 'package:map_app/core/theming/colors.dart';
 import 'package:map_app/core/theming/styles.dart';
 import 'package:map_app/core/widgets/app_text_button.dart';
@@ -36,55 +36,35 @@ class _LoginScreenState extends State<LoginScreen> {
     Future<void> _onLoginPressed() async {
       bool online = await checkInternetAndNotify(context);
       if (!online) return;
+
       try {
         if (_formKey.currentState!.validate()) {
-          final String _email = _usernameController.text.trim() + "@test.com";
-          final _userCredential = await FirebaseAuth.instance
-              .signInWithEmailAndPassword(
-                email: _email,
-                password: _passwordController.text.trim(),
-              );
+          final authService = Provider.of<AuthService>(context, listen: false);
+          final String email = _usernameController.text.trim() + "@test.com";
+          final String password = _passwordController.text.trim();
 
-          print(_userCredential);
+          // Sign in with PostgreSQL
+          await authService.signIn(
+            email: email,
+            password: password,
+          );
 
-          DocumentSnapshot userDoc = await FirebaseFirestore.instance
-              .collection('users')
-              .doc(_userCredential.user!.uid)
-              .get();
-
-          if (!userDoc.exists) {
-            throw Exception('User data not found');
-          }
-
-          final userData = userDoc.data() as Map<String, dynamic>;
-
-          // Create your AppUser instance
-          // // final user = AppUser(
-          // //   name: _usernameController.text
-          // //       .trim(), // or userData['name'] if stored
-          // //   role: userData['role'] ?? 'normal',
-          // //   contributionCount: userData['contributionCount'] ?? 0,
-          // //   requestSent: userData['contributionRequestSent'] ?? false,
-          // // );
-
-          // // Save user to Hive
-          // final hiveService = HiveService();
-          // await hiveService.saveUser(user);
-
-          // No more SharedPreferences here
-          // await saveUserRole(role);  <-- remove this line
+          if (!mounted) return;
 
           context.pushReplacementNamed(Routes.mainScreen);
 
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(const SnackBar(content: Text("Logging in...")));
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text("Logging in...")),
+          );
         }
       } catch (e) {
-        print(e);
+        print('Login error: $e');
+        if (!mounted) return;
+
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text("Logging in failed, check username and password"),
+          SnackBar(
+            content: Text(e.toString().replaceAll('Exception: ', '')),
+            backgroundColor: Colors.red,
           ),
         );
       }
