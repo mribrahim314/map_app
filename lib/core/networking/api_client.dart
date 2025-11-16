@@ -1,7 +1,7 @@
 import 'dart:convert';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
+import 'package:map_app/core/config/app_config.dart';
 
 /// API Client for making HTTP requests to the backend
 /// Handles authentication, request/response formatting, and error handling
@@ -11,7 +11,7 @@ class ApiClient {
   ApiClient._internal();
 
   final _storage = const FlutterSecureStorage();
-  final String baseUrl = dotenv.env['API_BASE_URL'] ?? 'http://localhost:3000/api';
+  String get baseUrl => AppConfig.apiBaseUrl;
 
   // Token management
   Future<void> saveToken(String token) async {
