@@ -44,11 +44,9 @@ dependencies:
   latlong2: ^0.9.1
   maplibre: ^0.2.2
   flutter_bloc: ^9.1.1
-  # PostgreSQL dependencies for migration from Firebase
-  postgres: ^3.0.2
+  # Removed postgres and bcrypt - now using REST API backend
   crypto: ^3.0.3
-  bcrypt: ^1.1.3  # Secure password hashing
-  flutter_secure_storage: ^9.0.0  # Secure session storage
+  flutter_secure_storage: ^9.0.0  # Secure JWT token storage
   flutter_dotenv: ^5.1.0  # Environment variables
   image_picker: ^1.2.0
   dotted_border: ^3.1.0
