@@ -77,9 +77,17 @@ CORS_ORIGIN=*
 
 4. Ensure PostgreSQL database is set up:
 ```bash
-# Make sure the database schema is created
+# Option 1: Run all migrations automatically (recommended)
+cd ../database
+./run_migrations.sh
+
+# Option 2: Run migrations manually
 psql -U postgres -d map_app -f ../database/schema.sql
+psql -U postgres -d map_app -f ../database/migration_001_align_schema.sql
+psql -U postgres -d map_app -f ../database/migration_002_fix_users_id_generation.sql
 ```
+
+**Important:** Make sure to run migration_002 to fix the users ID auto-generation issue.
 
 5. Start the server:
 ```bash
